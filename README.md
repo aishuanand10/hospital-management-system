@@ -1,0 +1,125 @@
+# Hospital Management System (HSM)
+
+Monorepo for a Hospital Management System built with Django REST Framework, PostgreSQL, Next.js 14, Tailwind CSS, and Docker.
+
+## Milestone 0 — Foundation
+
+This milestone delivers:
+
+- Monorepo scaffold (`backend/`, `frontend/`, `docker/`)
+- Docker Compose dev stack (PostgreSQL, Redis, Django, Next.js, nginx)
+- JWT authentication (`login`, `refresh`, `logout`, `me`)
+- Health check endpoint
+- Login UI connected to the API
+
+## Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (with Docker Compose v2)
+- Git (optional)
+
+## Quick Start
+
+1. Copy environment variables:
+
+```bash
+cp .env.example .env
+```
+
+2. Start the stack:
+
+```bash
+make up
+```
+
+Or:
+
+```bash
+docker compose up -d --build
+```
+
+3. Open the application:
+
+| Service | URL |
+|---------|-----|
+| Frontend (via nginx) | http://localhost |
+| Login page | http://localhost/login |
+| API health check | http://localhost/api/v1/health/ |
+| API docs (Swagger) | http://localhost/api/docs/ |
+| Django admin | http://localhost/admin/ |
+| Backend (direct) | http://localhost:8000 |
+| Frontend (direct) | http://localhost:3000 |
+
+4. Sign in with the seeded admin account:
+
+- **Email:** `admin@hospital.com`
+- **Password:** `adminpassword123`
+
+## Project Structure
+
+```
+HSM/
+??? backend/          # Django + DRF API
+??? frontend/         # Next.js 14 + Tailwind UI
+??? docker/           # Dockerfiles and nginx config
+??? docker-compose.yml
+??? Makefile
+??? .env.example
+```
+
+## API Endpoints (Milestone 0)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/health/` | Health check (DB connectivity) |
+| POST | `/api/v1/auth/login/` | Email + password ? JWT tokens |
+| POST | `/api/v1/auth/refresh/` | Refresh access token |
+| POST | `/api/v1/auth/logout/` | Blacklist refresh token |
+| GET | `/api/v1/auth/me/` | Current authenticated user |
+
+## Useful Commands
+
+```bash
+make up        # Build and start all services
+make down      # Stop all services
+make logs      # Tail service logs
+make migrate   # Run Django migrations
+make seed      # Seed admin user
+make test      # Run backend tests in Docker
+```
+
+## Local Development (without Docker)
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements/development.txt
+export POSTGRES_HOST=localhost  # Windows: set POSTGRES_HOST=localhost
+python manage.py migrate
+python manage.py seed_admin
+python manage.py runserver
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+# Point API to backend directly when not using nginx:
+# NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
+npm run dev
+```
+
+## Testing
+
+Backend tests run with pytest:
+
+```bash
+make test
+```
+
+## Next Steps
+
+Milestone 1 will add user roles management, staff profiles, departments/wards/beds, and the admin dashboard shell.
