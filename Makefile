@@ -1,4 +1,4 @@
-.PHONY: up down build logs migrate shell test seed
+.PHONY: up down build logs migrate shell test seed seed-demo
 
 up:
 	docker compose up -d --build
@@ -20,6 +20,9 @@ shell:
 
 seed:
 	docker compose exec backend python manage.py seed_admin
+
+seed-demo:
+	docker compose exec backend python manage.py seed_demo
 
 test:
 	docker compose exec backend pytest
