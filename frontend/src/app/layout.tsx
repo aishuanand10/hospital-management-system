@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Hospital Management System",
-  description: "HMS — patient care and hospital operations",
+  description: "HMS - patient care and hospital operations",
 };
 
 export default function RootLayout({
@@ -17,8 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased`}>
+    <html lang="en" className="h-full">
+      <body className={`${inter.className} min-h-full bg-slate-50 text-slate-900 antialiased`}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

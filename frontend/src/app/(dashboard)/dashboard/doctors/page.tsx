@@ -14,6 +14,14 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { canWrite } from "@/lib/auth/rbac";
 import type { Doctor } from "@/types/doctor";
 import type { Department } from "@/types/department";
+import { PageHeader, Alert } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { IconEdit, IconPlus, IconTrash } from "@/components/ui/icons";
 
 const EMPTY_FORM = {
   first_name: "",
@@ -123,141 +131,165 @@ export default function DoctorsPage() {
     }
   };
 
+  const columns: Column<Doctor>[] = [
+    {
+      key: "name",
+      header: "Name",
+      sortValue: (d) => d.full_name.toLowerCase(),
+      render: (d) => (
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700">
+            {d.full_name.charAt(0).toUpperCase()}
+          </span>
+          <span className="font-medium text-slate-900">{d.full_name}</span>
+        </div>
+      ),
+    },
+    {
+      key: "specialty",
+      header: "Specialty",
+      sortValue: (d) => d.specialty.toLowerCase(),
+      render: (d) => d.specialty,
+    },
+    {
+      key: "department",
+      header: "Department",
+      sortValue: (d) => d.department.toLowerCase(),
+      render: (d) => d.department,
+    },
+    { key: "license_number", header: "License", render: (d) => d.license_number },
+    {
+      key: "status",
+      header: "Status",
+      sortValue: (d) => (d.is_active ? 1 : 0),
+      render: (d) => (
+        <Badge tone={d.is_active ? "green" : "gray"}>
+          {d.is_active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      render: (d) =>
+        editable ? (
+          <div className="flex justify-end gap-1">
+            <Button size="sm" variant="ghost" icon={<IconEdit className="h-4 w-4" />} onClick={() => openEdit(d)}>
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-red-600 hover:bg-red-50"
+              icon={<IconTrash className="h-4 w-4" />}
+              onClick={() => handleDelete(d.id)}
+            >
+              Delete
+            </Button>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">View only</span>
+        ),
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Doctors</h1>
-          <p className="text-slate-600">Manage doctor profiles</p>
-        </div>
+      <PageHeader title="Doctors" subtitle="Manage doctor profiles">
         {editable && (
-          <button
-            onClick={openCreate}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
+          <Button onClick={openCreate} icon={<IconPlus className="h-4 w-4" />}>
             Add Doctor
-          </button>
+          </Button>
         )}
-      </div>
+      </PageHeader>
 
-      <input
-        type="search"
-        placeholder="Search doctors..."
+      <SearchInput
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        onChange={setSearch}
+        placeholder="Search doctors by name or specialty..."
+        className="max-w-md"
       />
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <Alert>{error}</Alert>}
 
-      {showForm && editable && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-lg font-semibold">{editing ? "Edit Doctor" : "New Doctor"}</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <input required placeholder="First name" value={form.first_name}
-              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input required placeholder="Last name" value={form.last_name}
-              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input required type="email" placeholder="Email" value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input required placeholder="Phone" value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input required placeholder="Specialty" value={form.specialty}
-              onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input required placeholder="License number" value={form.license_number}
-              onChange={(e) => setForm({ ...form, license_number: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input required placeholder="Department (label)" value={form.department}
-              onChange={(e) => setForm({ ...form, department: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <select value={form.department_ref ?? ""}
-              onChange={(e) => setForm({ ...form, department_ref: e.target.value || null })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              <option value="">Assign to department...</option>
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.id}>{dept.name}</option>
-              ))}
-            </select>
-            <input type="number" min={0} placeholder="Years of experience" value={form.years_of_experience}
-              onChange={(e) => setForm({ ...form, years_of_experience: Number(e.target.value) })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input type="number" min={0} step="0.01" placeholder="Consultation fee" value={form.consultation_fee}
-              onChange={(e) => setForm({ ...form, consultation_fee: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <textarea placeholder="Bio" value={form.bio}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm" rows={2} />
+      <DataTable
+        columns={columns}
+        rows={doctors}
+        rowKey={(d) => d.id}
+        loading={loading}
+        emptyMessage="No doctors found."
+      />
+
+      <Modal
+        open={showForm && editable}
+        onClose={() => setShowForm(false)}
+        title={editing ? "Edit Doctor" : "New Doctor"}
+        subtitle="Doctor profile and department assignment"
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="First name" required>
+              <Input required placeholder="First name" value={form.first_name}
+                onChange={(e) => setForm({ ...form, first_name: e.target.value })} />
+            </Field>
+            <Field label="Last name" required>
+              <Input required placeholder="Last name" value={form.last_name}
+                onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
+            </Field>
+            <Field label="Email" required>
+              <Input required type="email" placeholder="you@example.com" value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </Field>
+            <Field label="Phone" required>
+              <Input required placeholder="Phone" value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            </Field>
+            <Field label="Specialty" required>
+              <Input required placeholder="Specialty" value={form.specialty}
+                onChange={(e) => setForm({ ...form, specialty: e.target.value })} />
+            </Field>
+            <Field label="License number" required>
+              <Input required placeholder="License number" value={form.license_number}
+                onChange={(e) => setForm({ ...form, license_number: e.target.value })} />
+            </Field>
+            <Field label="Department (label)" required>
+              <Input required placeholder="e.g. Cardiology" value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value })} />
+            </Field>
+            <Field label="Assign to department">
+              <Select value={form.department_ref ?? ""}
+                onChange={(e) => setForm({ ...form, department_ref: e.target.value || null })}>
+                <option value="">Assign to department...</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>{dept.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Years of experience">
+              <Input type="number" min={0} value={form.years_of_experience}
+                onChange={(e) => setForm({ ...form, years_of_experience: Number(e.target.value) })} />
+            </Field>
+            <Field label="Consultation fee">
+              <Input type="number" min={0} step="0.01" value={form.consultation_fee}
+                onChange={(e) => setForm({ ...form, consultation_fee: e.target.value })} />
+            </Field>
+            <Field label="Bio" className="sm:col-span-2">
+              <Textarea placeholder="Short professional bio" value={form.bio} rows={2}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })} />
+            </Field>
           </div>
-          <div className="mt-4 flex gap-2">
-            <button type="submit" disabled={submitting}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {submitting ? "Saving..." : "Save"}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm">
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
               Cancel
-            </button>
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Saving..." : "Save Doctor"}
+            </Button>
           </div>
         </form>
-      )}
-
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Specialty</th>
-              <th className="px-4 py-3">Department</th>
-              <th className="px-4 py-3">License</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500">Loading...</td></tr>
-            ) : doctors.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500">No doctors found.</td></tr>
-            ) : (
-              doctors.map((d) => (
-                <tr key={d.id} className="border-b border-slate-100">
-                  <td className="px-4 py-3 font-medium">{d.full_name}</td>
-                  <td className="px-4 py-3">{d.specialty}</td>
-                  <td className="px-4 py-3">{d.department}</td>
-                  <td className="px-4 py-3">{d.license_number}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${d.is_active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"}`}>
-                      {d.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 space-x-2">
-                    {editable ? (
-                      <>
-                        <button onClick={() => openEdit(d)} className="text-blue-600 hover:underline">Edit</button>
-                        <button onClick={() => handleDelete(d.id)} className="text-red-600 hover:underline">Delete</button>
-                      </>
-                    ) : (
-                      <span className="text-xs text-slate-400">View only</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      </Modal>
     </div>
   );
 }

@@ -18,6 +18,24 @@ import type { Appointment, AppointmentStatus } from "@/types/appointment";
 import { APPOINTMENT_STATUS_OPTIONS, formatAppointmentStatus } from "@/types/appointment";
 import type { Doctor } from "@/types/doctor";
 import type { Patient } from "@/types/patient";
+import { PageHeader, Alert } from "@/components/ui/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { DataTable, type Column } from "@/components/ui/DataTable";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { Card } from "@/components/ui/Card";
+import {
+  IconCalendar,
+  IconChevronLeft,
+  IconChevronRight,
+  IconClock,
+  IconEdit,
+  IconList,
+  IconPlus,
+  IconTrash,
+} from "@/components/ui/icons";
 
 const EMPTY_FORM = {
   patient: "",
@@ -29,6 +47,14 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+const STATUS_TONES: Record<string, BadgeTone> = {
+  scheduled: "blue",
+  confirmed: "green",
+  completed: "gray",
+  cancelled: "red",
+  no_show: "amber",
+};
+
 const STATUS_COLORS: Record<string, string> = {
   scheduled: "bg-blue-100 text-blue-700",
   confirmed: "bg-emerald-100 text-emerald-700",
@@ -36,6 +62,10 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-red-100 text-red-700",
   no_show: "bg-amber-100 text-amber-700",
 };
+
+function statusTone(status: string): BadgeTone {
+  return STATUS_TONES[status] ?? "gray";
+}
 
 function toDatetimeLocalValue(iso: string): string {
   const d = new Date(iso);
@@ -193,151 +223,150 @@ export default function AppointmentsPage() {
   const shiftMonth = (delta: number) =>
     setCalMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
 
+  const today = new Date();
+  const isToday = (day: number) =>
+    calMonth.getFullYear() === today.getFullYear() &&
+    calMonth.getMonth() === today.getMonth() &&
+    day === today.getDate();
+
+  const columns: Column<Appointment>[] = [
+    {
+      key: "patient",
+      header: "Patient",
+      sortValue: (a) => a.patient_name.toLowerCase(),
+      render: (a) => <span className="font-medium text-slate-900">{a.patient_name}</span>,
+    },
+    { key: "doctor", header: "Doctor", sortValue: (a) => a.doctor_name.toLowerCase(), render: (a) => a.doctor_name },
+    {
+      key: "scheduled",
+      header: "Scheduled",
+      sortValue: (a) => a.scheduled_at,
+      render: (a) => (
+        <span className="whitespace-nowrap text-slate-600">
+          {new Date(a.scheduled_at).toLocaleString()}
+        </span>
+      ),
+    },
+    { key: "reason", header: "Reason", render: (a) => a.reason },
+    {
+      key: "status",
+      header: "Status",
+      sortValue: (a) => a.status,
+      render: (a) => <Badge tone={statusTone(a.status)}>{formatAppointmentStatus(a.status)}</Badge>,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      render: (a) =>
+        editable ? (
+          <div className="flex justify-end gap-1">
+            <Button size="sm" variant="ghost" icon={<IconEdit className="h-4 w-4" />} onClick={() => openEdit(a)}>
+              Edit
+            </Button>
+            <Button size="sm" variant="ghost" icon={<IconClock className="h-4 w-4" />} onClick={() => openReschedule(a)}>
+              Reschedule
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-red-600 hover:bg-red-50"
+              icon={<IconTrash className="h-4 w-4" />}
+              onClick={() => handleDelete(a.id)}
+            >
+              Delete
+            </Button>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">View only</span>
+        ),
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Appointments</h1>
-          <p className="text-slate-600">Schedule and manage appointments</p>
+      <PageHeader title="Appointments" subtitle="Schedule and manage appointments">
+        <div className="flex rounded-lg border border-slate-300 bg-white p-0.5">
+          <button
+            onClick={() => setView("list")}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              view === "list" ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <IconList className="h-4 w-4" />
+            List
+          </button>
+          <button
+            onClick={() => setView("calendar")}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              view === "calendar" ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <IconCalendar className="h-4 w-4" />
+            Calendar
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg border border-slate-300 p-0.5">
-            <button
-              onClick={() => setView("list")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${view === "list" ? "bg-blue-600 text-white" : "text-slate-600"}`}
-            >
-              List
-            </button>
-            <button
-              onClick={() => setView("calendar")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${view === "calendar" ? "bg-blue-600 text-white" : "text-slate-600"}`}
-            >
-              Calendar
-            </button>
-          </div>
-          {editable && (
-            <button
-              onClick={openCreate}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              New Appointment
-            </button>
-          )}
-        </div>
-      </div>
+        {editable && (
+          <Button onClick={openCreate} icon={<IconPlus className="h-4 w-4" />}>
+            New Appointment
+          </Button>
+        )}
+      </PageHeader>
 
       {view === "list" && (
-        <input
-          type="search"
-          placeholder="Search appointments..."
+        <SearchInput
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          onChange={setSearch}
+          placeholder="Search appointments..."
+          className="max-w-md"
         />
       )}
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {showForm && editable && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-lg font-semibold">{editing ? "Edit Appointment" : "New Appointment"}</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <select required value={form.patient} onChange={(e) => setForm({ ...form, patient: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              <option value="">Select patient</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>{p.full_name} ({p.medical_record_number})</option>
-              ))}
-            </select>
-            <select required value={form.doctor} onChange={(e) => setForm({ ...form, doctor: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              <option value="">Select doctor</option>
-              {doctors.map((d) => (
-                <option key={d.id} value={d.id}>{d.full_name} - {d.specialty}</option>
-              ))}
-            </select>
-            <input required type="datetime-local" value={form.scheduled_at}
-              onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <input type="number" min={15} step={15} value={form.duration_minutes}
-              onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as AppointmentStatus })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              {APPOINTMENT_STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <input required placeholder="Reason for visit" value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <textarea placeholder="Notes" value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="sm:col-span-2 rounded-lg border border-slate-300 px-3 py-2 text-sm" rows={2} />
-          </div>
-          <div className="mt-4 flex gap-2">
-            <button type="submit" disabled={submitting}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {submitting ? "Saving..." : "Save"}
-            </button>
-            <button type="button" onClick={() => setShowForm(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm">
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {reschedTarget && (
-        <form onSubmit={submitReschedule} className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Reschedule: {reschedTarget.patient_name} with {reschedTarget.doctor_name}
-          </h2>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <input required type="datetime-local" value={reschedValue}
-              onChange={(e) => setReschedValue(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            <button type="submit" disabled={submitting}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {submitting ? "Saving..." : "Confirm reschedule"}
-            </button>
-            <button type="button" onClick={() => setReschedTarget(null)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Cancel</button>
-          </div>
-        </form>
-      )}
+      {error && <Alert>{error}</Alert>}
 
       {view === "calendar" ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
-            <button onClick={() => shiftMonth(-1)} className="rounded-lg border border-slate-300 px-3 py-1 text-sm">Prev</button>
+            <Button variant="secondary" size="sm" icon={<IconChevronLeft className="h-4 w-4" />} onClick={() => shiftMonth(-1)}>
+              Prev
+            </Button>
             <h2 className="text-lg font-semibold text-slate-900">{monthLabel}</h2>
-            <button onClick={() => shiftMonth(1)} className="rounded-lg border border-slate-300 px-3 py-1 text-sm">Next</button>
+            <Button variant="secondary" size="sm" onClick={() => shiftMonth(1)}>
+              Next
+              <IconChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-          <div className="mt-4 grid grid-cols-7 gap-px text-center text-xs font-medium text-slate-500">
+          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div key={d} className="py-1">{d}</div>
             ))}
           </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
             {calendarCells.map((cell, i) => (
-              <div key={i} className={`min-h-[90px] rounded-lg border p-1 text-left ${cell ? "border-slate-200" : "border-transparent bg-slate-50"}`}>
+              <div
+                key={i}
+                className={`min-h-[92px] rounded-lg border p-1 text-left ${
+                  cell ? "border-slate-200 bg-white" : "border-transparent bg-slate-50/60"
+                }`}
+              >
                 {cell && (
                   <>
-                    <div className="text-xs font-medium text-slate-500">{cell.day}</div>
+                    <div
+                      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                        isToday(cell.day) ? "bg-brand-600 text-white" : "text-slate-500"
+                      }`}
+                    >
+                      {cell.day}
+                    </div>
                     <div className="mt-1 space-y-1">
                       {cell.items.slice(0, 3).map((a) => (
-                        <div key={a.id}
+                        <div
+                          key={a.id}
                           title={`${a.patient_name} - ${a.doctor_name} - ${formatAppointmentStatus(a.status)}`}
-                          className={`truncate rounded px-1 py-0.5 text-[10px] ${STATUS_COLORS[a.status] ?? "bg-slate-100 text-slate-700"}`}>
-                          {new Date(a.scheduled_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} {a.patient_name}
+                          className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${STATUS_COLORS[a.status] ?? "bg-slate-100 text-slate-700"}`}
+                        >
+                          {new Date(a.scheduled_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{" "}
+                          {a.patient_name}
                         </div>
                       ))}
                       {cell.items.length > 3 && (
@@ -349,55 +378,103 @@ export default function AppointmentsPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Patient</th>
-                <th className="px-4 py-3">Doctor</th>
-                <th className="px-4 py-3">Scheduled</th>
-                <th className="px-4 py-3">Reason</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500">Loading...</td></tr>
-              ) : appointments.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-500">No appointments found.</td></tr>
-              ) : (
-                appointments.map((a) => (
-                  <tr key={a.id} className="border-b border-slate-100">
-                    <td className="px-4 py-3">{a.patient_name}</td>
-                    <td className="px-4 py-3">{a.doctor_name}</td>
-                    <td className="px-4 py-3">{new Date(a.scheduled_at).toLocaleString()}</td>
-                    <td className="px-4 py-3">{a.reason}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_COLORS[a.status] ?? "bg-slate-100 text-slate-700"}`}>
-                        {formatAppointmentStatus(a.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 space-x-2">
-                      {editable ? (
-                        <>
-                          <button onClick={() => openEdit(a)} className="text-blue-600 hover:underline">Edit</button>
-                          <button onClick={() => openReschedule(a)} className="text-blue-600 hover:underline">Reschedule</button>
-                          <button onClick={() => handleDelete(a.id)} className="text-red-600 hover:underline">Delete</button>
-                        </>
-                      ) : (
-                        <span className="text-xs text-slate-400">View only</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={appointments}
+          rowKey={(a) => a.id}
+          loading={loading}
+          emptyMessage="No appointments found."
+          initialSort={{ key: "scheduled", dir: "desc" }}
+        />
       )}
+
+      <Modal
+        open={showForm && editable}
+        onClose={() => setShowForm(false)}
+        title={editing ? "Edit Appointment" : "New Appointment"}
+        subtitle="Book or update a patient appointment"
+        size="lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Patient" required>
+              <Select required value={form.patient} onChange={(e) => setForm({ ...form, patient: e.target.value })}>
+                <option value="">Select patient</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>{p.full_name} ({p.medical_record_number})</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Doctor" required>
+              <Select required value={form.doctor} onChange={(e) => setForm({ ...form, doctor: e.target.value })}>
+                <option value="">Select doctor</option>
+                {doctors.map((d) => (
+                  <option key={d.id} value={d.id}>{d.full_name} - {d.specialty}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Date & time" required>
+              <Input required type="datetime-local" value={form.scheduled_at}
+                onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })} />
+            </Field>
+            <Field label="Duration (minutes)">
+              <Input type="number" min={15} step={15} value={form.duration_minutes}
+                onChange={(e) => setForm({ ...form, duration_minutes: Number(e.target.value) })} />
+            </Field>
+            <Field label="Status">
+              <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as AppointmentStatus })}>
+                {APPOINTMENT_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Reason" required>
+              <Input required placeholder="Reason for visit" value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+            </Field>
+            <Field label="Notes" className="sm:col-span-2">
+              <Textarea placeholder="Notes" value={form.notes} rows={2}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </Field>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Saving..." : "Save Appointment"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={reschedTarget !== null}
+        onClose={() => setReschedTarget(null)}
+        title="Reschedule Appointment"
+        subtitle={
+          reschedTarget
+            ? `${reschedTarget.patient_name} with ${reschedTarget.doctor_name}`
+            : undefined
+        }
+      >
+        <form onSubmit={submitReschedule} className="space-y-5">
+          <Field label="New date & time" required>
+            <Input required type="datetime-local" value={reschedValue}
+              onChange={(e) => setReschedValue(e.target.value)} />
+          </Field>
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setReschedTarget(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Saving..." : "Confirm reschedule"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
