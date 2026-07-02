@@ -5,6 +5,9 @@ from .models import Doctor
 
 class DoctorSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
+    department_name = serializers.CharField(
+        source="department_ref.name", read_only=True, default=None
+    )
 
     class Meta:
         model = Doctor
@@ -19,6 +22,8 @@ class DoctorSerializer(serializers.ModelSerializer):
             "specialty",
             "license_number",
             "department",
+            "department_ref",
+            "department_name",
             "years_of_experience",
             "consultation_fee",
             "bio",

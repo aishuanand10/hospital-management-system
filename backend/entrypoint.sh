@@ -20,5 +20,6 @@ echo "PostgreSQL is ready."
 python manage.py migrate --noinput
 python manage.py seed_admin
 python manage.py seed_demo
+python manage.py seed_m2
 
 exec "$@"

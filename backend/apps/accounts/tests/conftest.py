@@ -21,6 +21,45 @@ def admin_user(db):
     )
 
 
+@pytest.fixture
+def doctor_user(db):
+    return User.objects.create_user(
+        email="doc@hospital.com",
+        username="doc",
+        password="testpassword123",
+        first_name="Doc",
+        last_name="Tor",
+        role=Role.DOCTOR,
+        is_verified=True,
+    )
+
+
+@pytest.fixture
+def receptionist_user(db):
+    return User.objects.create_user(
+        email="reception@hospital.com",
+        username="reception",
+        password="testpassword123",
+        first_name="Front",
+        last_name="Desk",
+        role=Role.RECEPTIONIST,
+        is_verified=True,
+    )
+
+
+@pytest.fixture
+def patient_user(db):
+    return User.objects.create_user(
+        email="pat@hospital.com",
+        username="pat",
+        password="testpassword123",
+        first_name="Pat",
+        last_name="Ient",
+        role=Role.PATIENT,
+        is_verified=True,
+    )
+
+
 def auth_client(user):
     client = APIClient()
     refresh = RefreshToken.for_user(user)

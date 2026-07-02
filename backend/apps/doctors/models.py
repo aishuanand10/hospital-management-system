@@ -20,6 +20,13 @@ class Doctor(models.Model):
     specialty = models.CharField(max_length=100)
     license_number = models.CharField(max_length=50, unique=True)
     department = models.CharField(max_length=100)
+    department_ref = models.ForeignKey(
+        "departments.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="doctors",
+    )
     years_of_experience = models.PositiveIntegerField(default=0)
     consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     bio = models.TextField(blank=True)

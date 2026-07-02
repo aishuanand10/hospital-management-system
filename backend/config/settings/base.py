@@ -29,7 +29,9 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.patients",
     "apps.doctors",
+    "apps.departments",
     "apps.appointments",
+    "apps.medical_records",
     "apps.dashboard",
 ]
 
